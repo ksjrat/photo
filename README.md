@@ -17,13 +17,14 @@
 - 역광, 머리 뒤에 겹친 기둥·나무, 복잡한 배경을 실시간으로 안내.
 
 ## AI 조언 (Gemini 무료 API)
+- 키 미리 넣기: `https://ksjrat.github.io/photo/#key=발급받은키` 를 폰에서 한 번 열면 저장된다 (# 뒤는 서버로 전송되지 않음).
 1. https://aistudio.google.com 에서 "Get API key"로 키 발급 (결제 등록 안 하면 요금이 나올 수 없음).
 2. 앱에서 "AI 조언"을 처음 누르면 키를 묻는다. 키는 그 폰 브라우저에만 저장되고 GitHub에는 올라가지 않는다.
 3. (권장) Google Cloud Console > API 및 서비스 > 사용자 인증 정보에서 키를 열고,
    "웹사이트 제한"에 `https://<아이디>.github.io/*` 를 추가.
 - 기본으로 인물 영역은 회색으로 가리고 배경만 전송한다 (CONFIG.aiMaskPerson).
 - 무료 등급에서는 보낸 이미지가 Google 제품 개선에 쓰일 수 있다.
-- 모델 오류(404)가 나면 CONFIG.aiModel을 AI Studio에서 보이는 Flash 모델 이름으로 바꾼다.
+- 모델 오류(404)가 나면 CONFIG.aiModels에 AI Studio에서 보이는 모델 이름을 넣는다.
 
 ## 조정
 `index.html` 상단 `CONFIG`의 숫자만 바꾸면 판정 기준이 바뀐다.
