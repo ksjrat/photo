@@ -43,10 +43,11 @@
   #toggles { justify-self:end; display:flex; flex-direction:column; gap:8px; font-size:15px; }
   #toggles label { display:flex; align-items:center; gap:6px; background:rgba(0,0,0,.55); padding:6px 12px; border-radius:999px; }
   #toggles input { width:18px; height:18px; margin:0; }
-  #aiBtn { font-size:15px; font-weight:700; color:#fff; background:rgba(99,102,241,.85); border:0; padding:7px 12px; border-radius:999px; }
-  #aiBtn:disabled { opacity:.5; }
+  #aiBtn, #poseBtn { font-size:15px; font-weight:700; color:#fff; background:rgba(99,102,241,.85); border:0; padding:7px 12px; border-radius:999px; }
+  #poseBtn { background:rgba(236,72,153,.85); }
+  #aiBtn:disabled, #poseBtn:disabled { opacity:.5; }
 
-  #aiPanel { position:fixed; left:12px; right:12px; bottom:calc(env(safe-area-inset-bottom) + 124px);
+  #aiPanel { position:fixed; left:12px; right:12px; bottom:calc(env(safe-area-inset-bottom) + 200px);
     background:rgba(15,15,20,.93); border-radius:14px; padding:12px 14px; max-height:42vh; overflow:auto; }
   #aiPanel[hidden] { display:none; }
   #aiHead { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
@@ -96,6 +97,7 @@
     <label><input type="checkbox" id="optAuto"> 자동</label>
     <label><input type="checkbox" id="optGrid" checked> 격자</label>
     <button id="aiBtn">AI 조언</button>
+    <button id="poseBtn">포즈 추천</button>
   </div>
 </div>
 
@@ -601,6 +603,16 @@ const AI_PROMPT = `이 이미지는 사람 사진을 찍기 직전의 카메라 
 - 이미 좋으면 "지금 구도 좋아요" 한 줄만
 번호 목록만 출력하고 다른 말은 하지 마.`;
 
+const POSE_PROMPT = `이 이미지는 사람 사진을 찍기 직전의 카메라 화면이다.
+회색 사각형이 있으면 그것은 찍힐 사람의 현재 위치이며, 개인정보 보호를 위해 가린 것이다.
+이 장소의 배경 요소(난간, 벽, 계단, 의자, 나무, 바다, 하늘, 길 등)를 활용해서
+여성 인물이 자연스럽고 예뻐 보이는 포즈를 3개 추천해줘.
+각 포즈는 아래 형식으로:
+1. 포즈 이름 (10자 이내)
+- 자세: 손·발·시선·몸 방향을 구체적으로 1~2줄
+- 촬영: 폰 높이·거리·인물 위치 한 줄
+처음 해보는 사람도 바로 따라할 수 있게 쉬운 말로. 다른 말은 하지 마.`;
+
 function showAi(text) { $("aiText").textContent = text; $("aiPanel").hidden = false; }
 
 function askKey() {
@@ -610,7 +622,10 @@ function askKey() {
   return k.trim();
 }
 
-async function aiAdvice() {
+async function aiAdvice(kind = "advice") {
+  const isPose = kind === "pose";
+  const btn = isPose ? $("poseBtn") : $("aiBtn");
+  const label = isPose ? "포즈 추천" : "AI 조언";
   if (!srcSize().w) return;
   let key = getKey() || askKey();
   if (!key) return;
@@ -629,12 +644,13 @@ async function aiAdvice() {
   }
   const b64 = c.toDataURL("image/jpeg", 0.8).split(",")[1];
 
-  const btn = $("aiBtn"); btn.disabled = true; btn.textContent = "분석 중…";
-  showAi("화면을 보고 있어요…");
+  $("aiBtn").disabled = true; $("poseBtn").disabled = true; btn.textContent = "분석 중…";
+  $("aiHead").querySelector("b").textContent = isPose ? "AI 포즈 추천" : "AI 구도 조언";
+  showAi(isPose ? "이 장소에 어울리는 포즈를 찾고 있어요…" : "화면을 보고 있어요…");
   try {
     const body = JSON.stringify({
-      contents: [{ parts: [{ inline_data: { mime_type: "image/jpeg", data: b64 } }, { text: AI_PROMPT }] }],
-      generationConfig: { temperature: 0.4, maxOutputTokens: 2048 },
+      contents: [{ parts: [{ inline_data: { mime_type: "image/jpeg", data: b64 } }, { text: isPose ? POSE_PROMPT : AI_PROMPT }] }],
+      generationConfig: { temperature: isPose ? 0.8 : 0.4, maxOutputTokens: 2048 },
     });
     let res, data = {};
     for (const model of CONFIG.aiModels) {
@@ -657,7 +673,7 @@ async function aiAdvice() {
   } catch (e) {
     showAi("네트워크 오류예요. 인터넷 연결을 확인해주세요.");
   } finally {
-    btn.disabled = false; btn.textContent = "AI 조언";
+    $("aiBtn").disabled = false; $("poseBtn").disabled = false; btn.textContent = label;
   }
 }
 
@@ -710,7 +726,8 @@ async function loadPhoto(file) {
 // ---------- 이벤트 ----------
 $("filePick").addEventListener("change", (e) => loadPhoto(e.target.files?.[0]));
 optGrid.addEventListener("change", () => { if (mode === "photo") draw(); });
-$("aiBtn").addEventListener("click", aiAdvice);
+$("aiBtn").addEventListener("click", () => aiAdvice("advice"));
+$("poseBtn").addEventListener("click", () => aiAdvice("pose"));
 $("aiClose").addEventListener("click", () => ($("aiPanel").hidden = true));
 $("aiKey").addEventListener("click", askKey);
 $("startBtn").addEventListener("click", start);
