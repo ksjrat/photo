@@ -162,6 +162,7 @@ const CONFIG = {
   poleFrac: 0.75,         // 한 세로줄에서 이 비율 이상 경계선이면 "기둥"
   clutterEdge: 0.12,      // 배경 경계선으로 볼 밝기 차이
   clutterFrac: 0.14,      // 배경 중 경계선 픽셀 비율이 이보다 크면 "복잡"
+  clutterCheck: false,    // 배경 복잡도 안내 사용 여부 (도움이 덜 돼서 기본 끔)
 
   // --- AI 조언 (Gemini 무료 API) ---
   // 앞에서부터 시도하고, 모델이 없다고(404) 하면 다음 모델로 넘어감
@@ -223,6 +224,7 @@ const modelPromise = initModel().catch((e) => { console.error(e); return null; }
 
 // ---------- 센서 (수평/기울기) ----------
 function onMotion(e) {
+  if (mode === "photo") return; // 사진 테스트 중에는 지금 폰 기울기를 쓰지 않음
   const g = e.accelerationIncludingGravity;
   if (!g || g.x == null || g.y == null) return;
   let gx = g.x, gy = g.y, gz = g.z ?? 0;
@@ -412,7 +414,7 @@ function bgAnalyze(info) {
   }
 
   // 3) 배경 복잡도: 인물 영역 밖 경계선 밀도
-  if (info.bbox) {
+  if (CONFIG.clutterCheck && info.bbox) {
     const b = info.bbox;
     const bx0 = b.x0 * W, bx1 = b.x1 * W, by0 = b.y0 * H, by1 = b.y1 * H;
     let edge = 0, n = 0;
@@ -686,7 +688,9 @@ async function loadPhoto(file) {
   galleryBtn.style.visibility = "hidden";
   optAuto.closest("label").style.display = "none";
   video.hidden = true; photoCanvas.hidden = false;
+  window.removeEventListener("devicemotion", onMotion);
   sensor.roll = null; sensor.pitch = null; // 지금 폰 기울기는 사진과 무관
+  if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
   msgsEl.innerHTML = ""; state.msgSig = "";
   statusEl.textContent = "사진 분석 중…";
 
