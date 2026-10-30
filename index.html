@@ -16,7 +16,10 @@
     font-family:-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
     overscroll-behavior:none; touch-action:manipulation; -webkit-user-select:none; user-select:none; }
   #stage { position:fixed; inset:0; background:#000; }
-  #video, #overlay { position:absolute; }
+  #video, #photo, #overlay { position:absolute; }
+  .linkBtn { display:inline-block; margin-top:14px; font-size:16px; padding:12px 24px; border-radius:999px; border:1px solid #666; color:#ddd; }
+  #pickBtn { font-size:17px; font-weight:700; padding:14px 22px; border-radius:999px; background:#fff; color:#111; }
+  #pickBtn[hidden] { display:none; }
   #video { object-fit:fill; }
 
   #top { position:fixed; top:0; left:0; right:0; padding:calc(env(safe-area-inset-top) + 10px) 12px 0;
@@ -76,6 +79,7 @@
 <body>
 <div id="stage">
   <video id="video" playsinline muted autoplay></video>
+  <canvas id="photo" hidden></canvas>
   <canvas id="overlay"></canvas>
 </div>
 
@@ -87,6 +91,7 @@
 <div id="bottom">
   <button id="gallery" aria-label="찍은 사진"></button>
   <button id="shutter" aria-label="촬영"></button>
+  <label for="filePick" id="pickBtn" hidden>다른 사진</label>
   <div id="toggles">
     <label><input type="checkbox" id="optAuto"> 자동</label>
     <label><input type="checkbox" id="optGrid" checked> 격자</label>
@@ -100,6 +105,7 @@
 </div>
 
 <div id="flash"></div>
+<input type="file" id="filePick" accept="image/*" style="position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none">
 
 <div id="viewer" hidden>
   <img id="viewImg" alt="">
@@ -116,6 +122,7 @@
     <h1>구도 도우미</h1>
     <p>화면 위 안내가 사라지고<br>테두리가 <b style="color:#22c55e">초록색</b>이 되면 찍으세요.<br>폰은 세로로 들어주세요.</p>
     <button id="startBtn">카메라 시작</button>
+    <div><label for="filePick" class="linkBtn">사진으로 테스트</label></div>
     <p id="startErr"></p>
   </div>
 </div>
@@ -185,6 +192,10 @@ const video = $("video"), overlay = $("overlay"), ctx = overlay.getContext("2d")
 const statusEl = $("status"), msgsEl = $("msgs");
 const shutterBtn = $("shutter"), galleryBtn = $("gallery");
 const optAuto = $("optAuto"), optGrid = $("optGrid");
+const photoCanvas = $("photo");
+let mode = "camera"; // "camera" | "photo"
+const srcEl = () => (mode === "photo" ? photoCanvas : video);
+const srcSize = () => (mode === "photo" ? { w: photoCanvas.width, h: photoCanvas.height } : { w: video.videoWidth, h: video.videoHeight });
 
 const view = { x: 0, y: 0, w: 0, h: 0, dpr: 1 };
 const sensor = { roll: null, pitch: null };
@@ -267,15 +278,16 @@ async function start() {
 }
 
 function layout() {
-  const vw = video.videoWidth, vh = video.videoHeight;
+  const { w: vw, h: vh } = srcSize();
   if (!vw || !vh) return;
   const W = innerWidth, H = innerHeight, s = Math.min(W / vw, H / vh);
   const w = Math.round(vw * s), h = Math.round(vh * s);
   const x = Math.round((W - w) / 2), y = Math.round((H - h) / 2);
-  for (const el of [video, overlay]) Object.assign(el.style, { left: x + "px", top: y + "px", width: w + "px", height: h + "px" });
+  for (const el of [video, photoCanvas, overlay]) Object.assign(el.style, { left: x + "px", top: y + "px", width: w + "px", height: h + "px" });
   const dpr = Math.min(devicePixelRatio || 1, 2);
   overlay.width = Math.round(w * dpr); overlay.height = Math.round(h * dpr);
   Object.assign(view, { x, y, w, h, dpr });
+  if (mode === "photo") draw();
 }
 
 async function requestWakeLock() {
@@ -345,10 +357,11 @@ const actx = ana.getContext("2d", { willReadFrequently: true });
 
 function bgAnalyze(info) {
   const keys = [];
-  if (info.headTop == null || !video.videoWidth) return keys;
-  const W = CONFIG.analysisWidth, H = Math.round(W * video.videoHeight / video.videoWidth);
+  const src = srcSize();
+  if (info.headTop == null || !src.w) return keys;
+  const W = CONFIG.analysisWidth, H = Math.round(W * src.h / src.w);
   if (ana.width !== W || ana.height !== H) { ana.width = W; ana.height = H; }
-  actx.drawImage(video, 0, 0, W, H);
+  actx.drawImage(srcEl(), 0, 0, W, H);
   const d = actx.getImageData(0, 0, W, H).data;
   const L = new Float32Array(W * H);
   let sum = 0;
@@ -426,7 +439,8 @@ function renderMessages() {
   state.msgSig = sig;
   msgsEl.innerHTML = "";
   if (state.good) {
-    const d = document.createElement("div"); d.className = "msg ok"; d.textContent = "좋아요! 지금 찍으세요"; msgsEl.append(d);
+    const d = document.createElement("div"); d.className = "msg ok";
+    d.textContent = mode === "photo" ? "구도 문제 없음" : "좋아요! 지금 찍으세요"; msgsEl.append(d);
   } else {
     shown.forEach((k, i) => {
       const d = document.createElement("div"); d.className = "msg" + (i === 0 ? " first" : ""); d.textContent = MSG[k].t(); msgsEl.append(d);
@@ -591,17 +605,17 @@ function askKey() {
 }
 
 async function aiAdvice() {
-  if (!video.videoWidth) return;
+  if (!srcSize().w) return;
   let key = getKey() || askKey();
   if (!key) return;
 
   // 지금 화면을 축소 캡처하고, 인물 영역은 회색으로 가림
-  const vw = video.videoWidth, vh = video.videoHeight;
+  const { w: vw, h: vh } = srcSize();
   const s = Math.min(1, CONFIG.aiImageMax / Math.max(vw, vh));
   const c = document.createElement("canvas");
   c.width = Math.round(vw * s); c.height = Math.round(vh * s);
   const cx = c.getContext("2d");
-  cx.drawImage(video, 0, 0, c.width, c.height);
+  cx.drawImage(srcEl(), 0, 0, c.width, c.height);
   const b = state.analysis?.bbox;
   if (CONFIG.aiMaskPerson && state.lm && b) {
     cx.fillStyle = "#808080";
@@ -638,7 +652,55 @@ async function aiAdvice() {
   }
 }
 
+// ---------- 사진으로 테스트 ----------
+async function loadPhoto(file) {
+  if (!file) return;
+  $("start")?.remove();
+  mode = "photo";
+  shutterBtn.hidden = true; $("pickBtn").hidden = false;
+  galleryBtn.style.visibility = "hidden";
+  optAuto.closest("label").style.display = "none";
+  video.hidden = true; photoCanvas.hidden = false;
+  sensor.roll = null; sensor.pitch = null; // 지금 폰 기울기는 사진과 무관
+  msgsEl.innerHTML = ""; state.msgSig = "";
+  statusEl.textContent = "사진 분석 중…";
+
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.src = url;
+  try { await img.decode(); }
+  catch (_) { statusEl.textContent = "사진을 열 수 없어요"; URL.revokeObjectURL(url); return; }
+  const s = Math.min(1, 1920 / Math.max(img.naturalWidth, img.naturalHeight));
+  photoCanvas.width = Math.round(img.naturalWidth * s);
+  photoCanvas.height = Math.round(img.naturalHeight * s);
+  photoCanvas.getContext("2d").drawImage(img, 0, 0, photoCanvas.width, photoCanvas.height);
+  URL.revokeObjectURL(url);
+  state.lm = null; state.analysis = null;
+  layout();
+
+  const lmk = await modelPromise;
+  if (!lmk) { statusEl.textContent = "모델 로드 실패 — 네트워크 확인 후 새로고침"; return; }
+  if (!state.imageMode) { await lmk.setOptions({ runningMode: "IMAGE" }); state.imageMode = true; }
+  state.landmarker = lmk;
+
+  let lm = null;
+  try { lm = lmk.detect(photoCanvas).landmarks?.[0] || null; } catch (e) { console.warn(e); }
+  state.lm = lm;
+  const a = analyze(lm);
+  state.analysis = a.info;
+  let keys = a.keys;
+  if (!keys.includes("noPerson")) { try { keys = [...keys, ...bgAnalyze(a.info)]; } catch (e) { console.warn(e); } }
+  state.shown = [...new Set(keys)].sort((x, y) => MSG[x].p - MSG[y].p); // 사진 테스트는 전부 표시
+  state.good = state.shown.length === 0 && !!lm;
+  renderMessages();
+  statusEl.textContent = "사진 테스트 · 폰 기울기 판정은 제외";
+  draw();
+  $("filePick").value = "";
+}
+
 // ---------- 이벤트 ----------
+$("filePick").addEventListener("change", (e) => loadPhoto(e.target.files?.[0]));
+optGrid.addEventListener("change", () => { if (mode === "photo") draw(); });
 $("aiBtn").addEventListener("click", aiAdvice);
 $("aiClose").addEventListener("click", () => ($("aiPanel").hidden = true));
 $("aiKey").addEventListener("click", askKey);
