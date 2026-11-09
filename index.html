@@ -30,25 +30,45 @@
   .msg.first { font-size:22px; background:rgba(245,158,11,.93); color:#111; }
   .msg.ok { font-size:22px; background:rgba(34,197,94,.93); color:#04210f; }
 
-  #bottom { position:fixed; left:0; right:0; bottom:0; padding:14px 20px calc(env(safe-area-inset-bottom) + 18px);
-    display:grid; grid-template-columns:1fr auto 1fr; align-items:center;
-    background:linear-gradient(transparent, rgba(0,0,0,.65)); }
-  #gallery { justify-self:start; width:58px; height:58px; border-radius:10px; border:2px solid #fff;
+  #bottom { position:fixed; left:0; right:0; bottom:0; padding:10px 16px calc(env(safe-area-inset-bottom) + 14px);
+    display:grid; grid-template-columns:1fr auto 1fr; grid-template-areas:"tools tools tools" "gal shut ."; row-gap:12px; align-items:center;
+    background:linear-gradient(transparent, rgba(0,0,0,.7) 30%); }
+  #gallery { grid-area:gal; justify-self:start; width:58px; height:58px; border-radius:10px; border:2px solid #fff;
     background:#222 center/cover no-repeat; position:relative; color:#aaa; font-size:12px; padding:0; }
   #gallery .badge { position:absolute; top:-7px; right:-7px; background:var(--bad); color:#fff; border-radius:999px;
     font-size:11px; font-weight:700; padding:2px 6px; }
+  #shutter, #pickBtn { grid-area:shut; justify-self:center; }
   #shutter { width:78px; height:78px; border-radius:50%; border:5px solid #fff; background:rgba(255,255,255,.25); }
   #shutter:active { background:#fff; }
   #shutter.ready { border-color:var(--ok); box-shadow:0 0 0 4px rgba(34,197,94,.4); }
-  #toggles { justify-self:end; display:flex; flex-direction:column; gap:8px; font-size:15px; }
-  #toggles label { display:flex; align-items:center; gap:6px; background:rgba(0,0,0,.55); padding:6px 12px; border-radius:999px; }
-  #toggles input { width:18px; height:18px; margin:0; }
-  #aiBtn, #poseBtn { font-size:15px; font-weight:700; color:#fff; background:rgba(99,102,241,.85); border:0; padding:7px 12px; border-radius:999px; }
-  #poseBtn { background:rgba(236,72,153,.85); }
-  #aiBtn:disabled, #poseBtn:disabled { opacity:.5; }
+  #toggles { grid-area:tools; display:flex; justify-content:center; gap:6px; font-size:15px; }
+  #toggles label { display:flex; align-items:center; gap:5px; background:rgba(0,0,0,.55); padding:7px 11px; border-radius:999px; white-space:nowrap; }
+  #toggles input { width:17px; height:17px; margin:0; }
+  #aiBtn, #poseBtn { font-size:15px; font-weight:700; color:#fff; background:rgba(99,102,241,.9); border:0; padding:7px 13px; border-radius:999px; white-space:nowrap; }
+  #poseBtn { background:rgba(236,72,153,.9); }
+  #poseBtn.on { box-shadow:0 0 0 2px #fff inset; }
+  #aiBtn:disabled { opacity:.5; }
 
-  #aiPanel { position:fixed; left:12px; right:12px; bottom:calc(env(safe-area-inset-bottom) + 200px);
+  /* 포즈 가이드 */
+  #poseBar { position:fixed; left:0; right:0; bottom:calc(env(safe-area-inset-bottom) + 150px); padding:0 10px; }
+  #poseBar[hidden], #posePill[hidden] { display:none; }
+  #posePill { background:rgba(15,15,20,.82); border-radius:12px; padding:6px 12px; text-align:center; max-width:94vw; }
+  #poseName { font-size:16px; font-weight:800; }
+  #poseScore { font-size:14px; font-weight:800; padding:1px 8px; border-radius:999px; background:#555; margin-left:8px; }
+  #poseScore:empty { display:none; }
+  #poseScore.ok { background:var(--ok); color:#04210f; }
+  #poseTip { font-size:14px; line-height:1.4; color:#ddd; margin-top:2px; }
+  #poseTip:empty { display:none; }
+  #poseChips { display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; }
+  #poseChips::-webkit-scrollbar { display:none; }
+  #poseChips button { flex:none; font-size:15px; font-weight:700; border:0; border-radius:999px; padding:8px 13px; background:rgba(0,0,0,.65); color:#fff; }
+  #poseChips button.sel { background:#fff; color:#111; }
+  #poseChips button.pick::before { content:"★ "; color:#f59e0b; }
+  #poseChips button.util { background:rgba(236,72,153,.85); }
+
+  #aiPanel { position:fixed; left:12px; right:12px; bottom:calc(env(safe-area-inset-bottom) + 150px);
     background:rgba(15,15,20,.93); border-radius:14px; padding:12px 14px; max-height:42vh; overflow:auto; }
+  body.posing #aiPanel { bottom:calc(env(safe-area-inset-bottom) + 200px); max-height:36vh; }
   #aiPanel[hidden] { display:none; }
   #aiHead { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
   #aiHead b { flex:1; font-size:15px; color:#a5b4fc; }
@@ -86,6 +106,7 @@
 
 <div id="top">
   <div id="status">준비 중</div>
+  <div id="posePill" hidden><span id="poseName"></span><span id="poseScore"></span><div id="poseTip"></div></div>
   <div id="msgs"></div>
 </div>
 
@@ -97,9 +118,11 @@
     <label><input type="checkbox" id="optAuto"> 자동</label>
     <label><input type="checkbox" id="optGrid" checked> 격자</label>
     <button id="aiBtn">AI 조언</button>
-    <button id="poseBtn">포즈 추천</button>
+    <button id="poseBtn">포즈</button>
   </div>
 </div>
+
+<div id="poseBar" hidden><div id="poseChips"></div></div>
 
 <div id="aiPanel" hidden>
   <div id="aiHead"><b>AI 구도 조언</b><button id="aiKey">키 변경</button><button id="aiClose">닫기</button></div>
@@ -171,6 +194,12 @@ const CONFIG = {
   aiImageMax: 512,        // 전송 이미지 긴 변 픽셀 (작을수록 빠름, 구도 판단엔 충분)
   aiJpegQuality: 0.7,
   aiTimeoutMs: 25000,     // 모델 하나당 기다리는 최대 시간 (넘으면 다음 모델 시도)
+
+  // --- 포즈 가이드 ---
+  poseAngleTol: 20,       // 팔·다리 각도가 이 정도(°) 이내면 "맞음"
+  poseOkRatio: 0.8,       // 보이는 부위 중 이 비율 이상 맞으면 포즈 완성 (8개 중 7개)
+  poseGhostAlpha: 0.33,   // 실루엣 진하기
+  poseSmooth: 0.35,       // 실루엣이 사람을 따라가는 속도 (클수록 빠름, 떨림도 커짐)
   aiMaskPerson: true,     // true면 인물 영역을 회색으로 가리고 배경만 전송
 };
 
@@ -192,6 +221,7 @@ const MSG = {
   lowAngle: { p: 6, t: () => "폰을 허리 높이로 내리고 살짝 위로 — 다리가 길어 보여요" },
   position: { p: 7, t: () => "인물을 중앙 또는 1/3선에" },
   clutter:  { p: 8, t: () => "배경이 복잡해요 — 단순한 벽이나 하늘 쪽으로" },
+  pose:     { p: 9, t: () => state.poseEval?.hint || "실루엣에 자세를 맞춰요" },
 };
 
 const $ = (id) => document.getElementById(id);
@@ -295,7 +325,7 @@ function layout() {
   const dpr = Math.min(devicePixelRatio || 1, 2);
   overlay.width = Math.round(w * dpr); overlay.height = Math.round(h * dpr);
   Object.assign(view, { x, y, w, h, dpr });
-  if (mode === "photo") draw();
+  if (mode === "photo") photoRender();
 }
 
 async function requestWakeLock() {
@@ -473,6 +503,8 @@ function loop() {
       try { state.bgKeys = state.lm ? bgAnalyze(a.info) : []; } catch (e) { console.warn(e); state.bgKeys = []; }
     }
     const allKeys = a.keys.includes("noPerson") ? a.keys : [...a.keys, ...state.bgKeys];
+    poseUpdate();
+    if (poseNeedsWork()) allKeys.push("pose");
     state.shown = stabilize(allKeys);
     state.good = state.shown.length === 0 && !!state.lm;
     renderMessages();
@@ -515,6 +547,8 @@ function draw() {
     ctx.fillText(`${Math.abs(sensor.roll).toFixed(1)}°`, w / 2, h / 2);
   }
 
+  drawGhost();
+
   if (state.lm) {
     ctx.fillStyle = "rgba(255,255,255,.8)";
     for (const i of [0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28]) {
@@ -536,6 +570,302 @@ function draw() {
   ctx.lineWidth = 6;
   ctx.strokeStyle = !state.lm ? "rgba(255,255,255,.25)" : state.good ? "#22c55e" : "#f59e0b";
   ctx.strokeRect(3, 3, w - 6, h - 6);
+}
+
+// ---------- 포즈 가이드 (실루엣) ----------
+// 좌표 단위: 서 있는 사람 키 = 1, x는 몸 중심 기준(화면 왼쪽이 -), y는 머리 꼭대기 0 → 발끝 1
+// 관절 번호는 MediaPipe 기준: 0 코, 11/12 어깨, 13/14 팔꿈치, 15/16 손목, 23/24 엉덩이, 25/26 무릎, 27/28 발목
+// (카메라를 마주 본 사람 기준이라 12·14·16·24·26·28이 화면 왼쪽)
+const POSES = [
+  { id: "sline", name: "S라인 허리손", tip: "한쪽 다리에 체중, 반대쪽 무릎을 안으로. 한 손은 허리에", pts: {
+    0: [0.02, 0.065], 12: [-0.10, 0.185], 11: [0.12, 0.175], 14: [-0.13, 0.33], 16: [-0.13, 0.46],
+    13: [0.24, 0.35], 15: [0.09, 0.48], 24: [-0.08, 0.50], 23: [0.06, 0.51],
+    26: [-0.07, 0.72], 28: [-0.06, 0.95], 25: [0.00, 0.72], 27: [-0.02, 0.94] } },
+  { id: "lean", name: "난간 기대기", tip: "난간·벽 쪽으로 몸을 살짝 기울이고 팔꿈치를 올려요. 다리는 X자", needs: "난간, 벽, 기둥", pts: {
+    0: [-0.03, 0.07], 12: [-0.12, 0.19], 11: [0.10, 0.20], 14: [-0.26, 0.38], 16: [-0.38, 0.39],
+    13: [0.13, 0.34], 15: [0.11, 0.47], 24: [-0.08, 0.50], 23: [0.06, 0.50],
+    26: [-0.07, 0.72], 28: [-0.07, 0.95], 25: [0.02, 0.72], 27: [-0.03, 0.95] } },
+  { id: "hair", name: "머리 넘기기", tip: "한 손으로 머리를 쓸어 넘기고 고개는 살짝 기울여요", pts: {
+    0: [-0.02, 0.07], 12: [-0.11, 0.18], 11: [0.11, 0.18], 14: [-0.13, 0.33], 16: [-0.12, 0.46],
+    13: [0.22, 0.10], 15: [0.06, 0.03], 24: [-0.07, 0.50], 23: [0.07, 0.50],
+    26: [-0.07, 0.72], 28: [-0.07, 0.95], 25: [0.05, 0.72], 27: [0.03, 0.95] } },
+  { id: "walk", name: "걸어오기", tip: "카메라 쪽으로 천천히 걸어오며 자연스럽게 팔을 흔들어요", pts: {
+    0: [0.0, 0.065], 12: [-0.11, 0.18], 11: [0.11, 0.18], 14: [-0.15, 0.32], 16: [-0.12, 0.44],
+    13: [0.12, 0.33], 15: [0.17, 0.44], 24: [-0.07, 0.50], 23: [0.07, 0.50],
+    26: [-0.08, 0.72], 28: [-0.09, 0.96], 25: [0.06, 0.73], 27: [0.10, 0.90] } },
+  { id: "open", name: "양팔 벌리기", tip: "바다·하늘을 향해 양팔을 V자로 활짝. 탁 트인 풍경에 좋아요", needs: "바다, 하늘, 넓은 풍경", pts: {
+    0: [0.0, 0.065], 12: [-0.11, 0.18], 11: [0.11, 0.18], 14: [-0.22, 0.12], 16: [-0.33, 0.04],
+    13: [0.22, 0.12], 15: [0.33, 0.04], 24: [-0.07, 0.50], 23: [0.07, 0.50],
+    26: [-0.08, 0.72], 28: [-0.10, 0.95], 25: [0.08, 0.72], 27: [0.10, 0.95] } },
+  { id: "cheek", name: "볼에 손", tip: "한 손은 볼에, 다른 손은 그 팔꿈치를 받쳐요", pts: {
+    0: [0.0, 0.065], 12: [-0.11, 0.18], 11: [0.11, 0.18], 14: [-0.14, 0.31], 16: [-0.05, 0.10],
+    13: [0.12, 0.32], 15: [-0.10, 0.32], 24: [-0.08, 0.50], 23: [0.06, 0.51],
+    26: [-0.07, 0.72], 28: [-0.06, 0.95], 25: [0.00, 0.72], 27: [-0.02, 0.94] } },
+  { id: "hands", name: "앞으로 손 모으기", tip: "양손을 배 앞에 가볍게 모으고 한쪽 무릎을 살짝 굽혀요", pts: {
+    0: [0.0, 0.065], 12: [-0.11, 0.18], 11: [0.11, 0.18], 14: [-0.14, 0.33], 16: [-0.02, 0.44],
+    13: [0.14, 0.33], 15: [0.02, 0.44], 24: [-0.07, 0.50], 23: [0.07, 0.50],
+    26: [-0.07, 0.72], 28: [-0.07, 0.95], 25: [0.02, 0.72], 27: [0.00, 0.95] } },
+  { id: "sit", name: "앉아서 무릎에 손", tip: "벤치·계단에 앉아 양손을 무릎에. 허리는 곧게", needs: "벤치, 계단, 의자, 낮은 턱", pts: {
+    0: [0.0, 0.09], 12: [-0.15, 0.24], 11: [0.15, 0.24], 14: [-0.19, 0.45], 16: [-0.13, 0.62],
+    13: [0.19, 0.45], 15: [0.13, 0.62], 24: [-0.10, 0.67], 23: [0.10, 0.67],
+    26: [-0.13, 0.69], 28: [-0.11, 1.0], 25: [0.13, 0.69], 27: [0.11, 1.0] } },
+];
+const MIRROR_IDX = { 11: 12, 12: 11, 13: 14, 14: 13, 15: 16, 16: 15, 23: 24, 24: 23, 25: 26, 26: 25, 27: 28, 28: 27 };
+// 비교할 부위: [시작 관절, 끝 관절, 이름]
+// 이름은 움직여야 할 끝 관절 기준 (팔꿈치·손·무릎·발)
+const POSE_SEGS = [[12, 14, "팔꿈치"], [14, 16, "손"], [11, 13, "팔꿈치"], [13, 15, "손"],
+  [24, 26, "무릎"], [26, 28, "발"], [23, 25, "무릎"], [25, 27, "발"]];
+
+state.pose = null;        // { id, mirror, x }  (x: AI가 제안한 화면 가로 위치)
+state.poseEval = null;
+state.posePicks = [];     // AI 추천 [{id, why, x}]
+let ghostCanvas = null, ghostSmooth = null;
+
+function templatePts(pose, mirror) {
+  if (!mirror) return pose.pts;
+  const out = {};
+  for (const [k, [x, y]] of Object.entries(pose.pts)) out[MIRROR_IDX[k] ?? k] = [-x, y];
+  return out;
+}
+const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+
+// 실루엣을 화면 어디에 얼마 크기로 그릴지: 사람이 보이면 그 몸통에 맞추고, 없으면 기본 위치
+function ghostPlacement(t, lp, vis) {
+  const { w, h } = view;
+  const tSh = mid(t[11], t[12]), tHip = mid(t[23], t[24]);
+  if (vis(11) && vis(12) && vis(23) && vis(24)) {
+    const lSh = mid(lp(11), lp(12)), lHip = mid(lp(23), lp(24));
+    const scale = dist(lSh, lHip) / dist(tSh, tHip);
+    return { scale, ax: lHip[0], ay: lHip[1], tx: tHip[0], ty: tHip[1], follow: true };
+  }
+  if (vis(11) && vis(12)) {
+    const lSh = mid(lp(11), lp(12));
+    const scale = dist(lp(11), lp(12)) / dist(t[11], t[12]);
+    return { scale, ax: lSh[0], ay: lSh[1], tx: tSh[0], ty: tSh[1], follow: true };
+  }
+  const ys = Object.values(t).map((p) => p[1]);
+  const top = Math.min(...ys), bottom = Math.max(...ys);
+  const scale = (h * 0.62) / (bottom - top + 0.07);
+  return { scale, ax: (state.pose?.x ?? 0.5) * w, ay: h * 0.93, tx: 0, ty: bottom, follow: false };
+}
+
+function evalPose(t, lp, vis) {
+  const segs = [];
+  let ok = 0, seen = 0, worst = null;
+  for (const [a, b, name] of POSE_SEGS) {
+    const tv = [t[b][0] - t[a][0], t[b][1] - t[a][1]];
+    const tl = Math.hypot(...tv);
+    if (!vis(a) || !vis(b) || tl < 0.05) { segs.push({ a, b, state: "unknown" }); continue; }
+    const la = lp(a), lb = lp(b);
+    const lv = [lb[0] - la[0], lb[1] - la[1]], ll = Math.hypot(...lv);
+    if (ll < 4) { segs.push({ a, b, state: "unknown" }); continue; }
+    let d = Math.abs(Math.atan2(tv[1], tv[0]) - Math.atan2(lv[1], lv[0])) * 180 / Math.PI;
+    if (d > 180) d = 360 - d;
+    seen++;
+    const good = d <= CONFIG.poseAngleTol;
+    if (good) ok++;
+    // 끝 관절이 가야 할 위치 = 지금 시작 관절 + 실루엣 방향 × 지금 길이
+    const target = [la[0] + tv[0] / tl * ll, la[1] + tv[1] / tl * ll];
+    const seg = { a, b, name, state: good ? "ok" : "bad", d, la, lb, target, side: t[a][0] < 0 ? "화면 왼쪽" : "화면 오른쪽" };
+    segs.push(seg);
+    if (!good && (!worst || d > worst.d)) worst = seg;
+  }
+  return { segs, ok, seen, worst };
+}
+
+function poseUpdate() {
+  state.poseEval = null;
+  if (!state.pose || !view.w) return;
+  const pose = POSES.find((p) => p.id === state.pose.id);
+  if (!pose) return;
+  const lm = state.lm, { w, h } = view;
+  const vis = (i) => !!lm && lm[i] && (lm[i].visibility ?? 1) >= CONFIG.visThreshold;
+  const lp = (i) => [lm[i].x * w, lm[i].y * h];
+
+  // 좌우 방향은 사람 자세에 더 잘 맞는 쪽으로 자동 선택 (확실히 더 나을 때만 바꿈)
+  let mirror = !!state.pose.mirror;
+  let t = templatePts(pose, mirror);
+  let e = evalPose(t, lp, vis);
+  if (lm && state.pose.autoFlip !== false) {
+    const t2 = templatePts(pose, !mirror), e2 = evalPose(t2, lp, vis);
+    if (e2.ok >= e.ok + 2) { mirror = !mirror; state.pose.mirror = mirror; t = t2; e = e2; }
+  }
+  const place = ghostPlacement(t, lp, vis);
+  // 떨림 방지
+  if (ghostSmooth && ghostSmooth.follow === place.follow && ghostSmooth.id === pose.id + mirror) {
+    const k = CONFIG.poseSmooth;
+    for (const f of ["scale", "ax", "ay"]) place[f] = ghostSmooth[f] + (place[f] - ghostSmooth[f]) * k;
+  }
+  ghostSmooth = { ...place, id: pose.id + mirror };
+
+  const ratio = e.seen ? e.ok / e.seen : 0;
+  const done = e.seen >= 3 && ratio >= CONFIG.poseOkRatio;
+  let hint = "";
+  if (!lm) hint = "사람이 화면에 들어오면 자세를 비교해요";
+  else if (e.seen < 3) hint = "팔·다리가 보이도록 조금 뒤로 가요";
+  else if (done) hint = "포즈 완성!";
+  else if (e.worst) {
+    const s = e.worst, dx = s.target[0] - s.lb[0], dy = s.target[1] - s.lb[1];
+    const dir = Math.abs(dy) >= Math.abs(dx) ? (dy < 0 ? "위로" : "아래로") : (dx < 0 ? "왼쪽으로" : "오른쪽으로");
+    const c = s.name.charCodeAt(s.name.length - 1);
+    const josa = c >= 0xac00 && c <= 0xd7a3 && (c - 0xac00) % 28 ? "을" : "를";
+    hint = `${s.side} ${s.name}${josa} ${dir}`;
+  }
+  state.poseEval = { pose, t, place, ...e, ratio, done, hint };
+}
+
+const poseNeedsWork = () => !!(state.pose && state.lm && state.poseEval && !state.poseEval.done);
+
+function drawGhost() {
+  const ev = state.poseEval;
+  if (!ev) return;
+  const { w, h, dpr } = view, { t, place } = ev;
+  const P = (i) => [place.ax + (t[i][0] - place.tx) * place.scale, place.ay + (t[i][1] - place.ty) * place.scale];
+  const u = place.scale; // 키 1 = u 픽셀
+
+  // 1) 실루엣: 따로 그린 뒤 반투명하게 합성 (겹치는 부분이 진해지지 않게)
+  if (!ghostCanvas) ghostCanvas = document.createElement("canvas");
+  if (ghostCanvas.width !== overlay.width || ghostCanvas.height !== overlay.height) {
+    ghostCanvas.width = overlay.width; ghostCanvas.height = overlay.height;
+  }
+  const g = ghostCanvas.getContext("2d");
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, ghostCanvas.width, ghostCanvas.height);
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = g.strokeStyle = "#fff"; g.lineCap = g.lineJoin = "round";
+  const line = (a, b, lw) => { g.lineWidth = lw * u; g.beginPath(); g.moveTo(...P(a)); g.lineTo(...P(b)); g.stroke(); };
+  // 몸통
+  g.lineWidth = 0.05 * u; g.beginPath();
+  for (const [i, k] of [12, 11, 23, 24].entries()) i ? g.lineTo(...P(k)) : g.moveTo(...P(k));
+  g.closePath(); g.fill(); g.stroke();
+  // 목·머리
+  const sh = mid(P(11), P(12)), nose = P(0);
+  g.lineWidth = 0.06 * u; g.beginPath(); g.moveTo(...sh); g.lineTo(...nose); g.stroke();
+  g.beginPath(); g.arc(nose[0], nose[1] - 0.015 * u, 0.068 * u, 0, Math.PI * 2); g.fill();
+  // 팔다리
+  line(12, 14, 0.062); line(11, 13, 0.062); line(14, 16, 0.048); line(13, 15, 0.048);
+  line(24, 26, 0.09); line(23, 25, 0.09); line(26, 28, 0.065); line(25, 27, 0.065);
+  for (const i of [15, 16]) { const p = P(i); g.beginPath(); g.arc(p[0], p[1], 0.03 * u, 0, Math.PI * 2); g.fill(); }
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = CONFIG.poseGhostAlpha; ctx.drawImage(ghostCanvas, 0, 0); ctx.restore();
+
+  // 2) 부위별 색 선: 초록 맞음 / 빨강 다름 / 흰색 안 보임
+  ctx.save(); ctx.lineCap = "round";
+  for (const s of ev.segs) {
+    ctx.strokeStyle = s.state === "ok" ? "rgba(34,197,94,.95)" : s.state === "bad" ? "rgba(239,68,68,.95)" : "rgba(255,255,255,.6)";
+    ctx.lineWidth = s.state === "unknown" ? 2 : 4;
+    ctx.beginPath(); ctx.moveTo(...P(s.a)); ctx.lineTo(...P(s.b)); ctx.stroke();
+  }
+  // 가장 많이 다른 부위: 지금 위치 → 가야 할 위치 화살표
+  const s = ev.worst;
+  if (s && !ev.done && place.follow) {
+    ctx.strokeStyle = ctx.fillStyle = "#fde047"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(...s.lb); ctx.lineTo(...s.target); ctx.stroke();
+    const ang = Math.atan2(s.target[1] - s.lb[1], s.target[0] - s.lb[0]);
+    ctx.beginPath(); ctx.moveTo(...s.target);
+    ctx.lineTo(s.target[0] - 12 * Math.cos(ang - 0.45), s.target[1] - 12 * Math.sin(ang - 0.45));
+    ctx.lineTo(s.target[0] - 12 * Math.cos(ang + 0.45), s.target[1] - 12 * Math.sin(ang + 0.45));
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  renderPoseInfo();
+}
+
+// ---------- 포즈 바 (선택 버튼 + 한 줄 안내) ----------
+let poseInfoSig = "";
+let poseNote = "", poseNoteUntil = 0; // AI 추천 진행·실패 같은 잠깐 보여줄 문구
+function setPoseNote(t, ms = 4000) { poseNote = t; poseNoteUntil = performance.now() + ms; poseInfoSig = ""; renderPoseInfo(); }
+function renderPoseInfo() {
+  const ev = state.poseEval;
+  $("posePill").hidden = !ev;
+  if (!ev) return;
+  const pick = state.posePicks.find((p) => p.id === ev.pose.id);
+  const score = state.lm && ev.seen ? `${ev.ok}/${ev.seen}` : "";
+  // 자세 교정 안내는 위쪽 메시지에 나오므로, 여기는 포즈 설명만 (사람이 아직 안 보일 때)
+  const note = performance.now() < poseNoteUntil ? poseNote : "";
+  const tip = note || (state.lm && ev.seen >= 3 ? "" : (pick?.why ? `${pick.why} · ` : "") + ev.pose.tip);
+  const sig = ev.pose.name + score + ev.done + tip;
+  if (sig === poseInfoSig) return;
+  poseInfoSig = sig;
+  $("poseName").textContent = ev.pose.name;
+  const sc = $("poseScore"); sc.textContent = score; sc.hidden = !score; sc.classList.toggle("ok", ev.done);
+  $("poseTip").textContent = tip;
+}
+
+function renderPoseChips() {
+  const box = $("poseChips"); box.innerHTML = "";
+  const order = [...state.posePicks.map((p) => p.id), ...POSES.map((p) => p.id).filter((id) => !state.posePicks.some((p) => p.id === id))];
+  for (const id of order) {
+    const p = POSES.find((q) => q.id === id);
+    const b = document.createElement("button");
+    b.textContent = p.name;
+    if (state.posePicks.some((q) => q.id === id)) b.classList.add("pick");
+    if (state.pose?.id === id) b.classList.add("sel");
+    b.onclick = () => selectPose(id);
+    box.append(b);
+  }
+  const flip = document.createElement("button"); flip.className = "util"; flip.textContent = "↔ 좌우";
+  flip.onclick = () => { if (state.pose) { state.pose.mirror = !state.pose.mirror; state.pose.autoFlip = false; refreshPose(); } };
+  const ai = document.createElement("button"); ai.className = "util"; ai.textContent = "↻ AI 추천";
+  ai.onclick = () => posePickAI();
+  const close = document.createElement("button"); close.className = "util"; close.textContent = "✕ 닫기";
+  close.onclick = closePose;
+  box.append(flip, ai, close);
+}
+
+function selectPose(id) {
+  const pick = state.posePicks.find((p) => p.id === id);
+  state.pose = { id, mirror: state.pose?.mirror ?? false, x: pick?.x ?? 0.5 };
+  ghostSmooth = null; poseInfoSig = "";
+  renderPoseChips();
+  refreshPose();
+}
+
+function refreshPose() {
+  if (mode === "photo") photoRender(); else { poseUpdate(); draw(); }
+}
+
+function openPose() {
+  $("poseBar").hidden = false; document.body.classList.add("posing"); $("poseBtn").classList.add("on");
+  if (!state.pose) selectPose(state.posePicks[0]?.id || POSES[0].id); else renderPoseChips();
+  posePickAI();
+}
+
+function closePose() {
+  state.pose = null; state.poseEval = null; ghostSmooth = null; poseInfoSig = "";
+  $("poseBar").hidden = true; $("posePill").hidden = true; document.body.classList.remove("posing"); $("poseBtn").classList.remove("on");
+  if (mode === "photo") photoRender(); else draw();
+}
+
+const POSE_PICK_PROMPT = () => `이 이미지는 사람 사진을 찍기 직전의 카메라 화면이다.
+회색 사각형이 있으면 그것은 찍힐 사람의 현재 위치이며, 개인정보 보호를 위해 가린 것이다.
+아래 포즈 목록 중 이 장소에서 여성 인물이 가장 예뻐 보일 포즈 3개를 골라라.
+"필요" 항목이 있는 포즈는 그 요소가 화면에 실제로 있을 때만 골라.
+${POSES.map((p) => `- ${p.id}: ${p.name} — ${p.tip}${p.needs ? ` (필요: ${p.needs})` : ""}`).join("\n")}
+JSON으로만 답해: {"picks":[{"id":"포즈 id","why":"이 장소에 맞는 이유, 한국어 20자 이내","x":0.5}]}
+x는 인물이 서면 좋을 화면 가로 위치(0~1). 보통 0.33, 0.5, 0.67 중 하나.`;
+
+let posePicking = false;
+async function posePickAI() {
+  if (posePicking) return;
+  let key = getKey() || askKey();
+  if (!key) { setPoseNote("AI 키가 없어서 기본 포즈 목록을 보여드려요"); return; }
+  const b64 = captureForAi();
+  if (!b64) return;
+  posePicking = true;
+  setPoseNote("AI가 이 장소에 맞는 포즈를 고르는 중…", 30000);
+  try {
+    const r = await callGemini({ key, b64, prompt: POSE_PICK_PROMPT(), temperature: 0.6, json: true });
+    const s = r.text, j = JSON.parse(s.slice(s.indexOf("{"), s.lastIndexOf("}") + 1));
+    const picks = (j.picks || []).filter((p) => POSES.some((q) => q.id === p.id)).slice(0, 3)
+      .map((p) => ({ id: p.id, why: String(p.why || "").slice(0, 30), x: Math.min(0.8, Math.max(0.2, Number(p.x) || 0.5)) }));
+    if (!picks.length) throw new Error("추천 결과가 비어 있어요");
+    state.posePicks = picks;
+    setPoseNote("", 0);
+    if (!$("poseBar").hidden) selectPose(picks[0].id);
+  } catch (e) {
+    setPoseNote("AI 추천 실패 — 기본 목록에서 골라주세요. " + String(e.message || e).split("\n")[0].slice(0, 80), 6000);
+  } finally { posePicking = false; }
 }
 
 // ---------- 촬영 / 저장 ----------
@@ -608,16 +938,6 @@ const AI_PROMPT = `이 이미지는 사람 사진을 찍기 직전의 카메라 
 - 이미 좋으면 "지금 구도 좋아요" 한 줄만
 번호 목록만 출력하고 다른 말은 하지 마.`;
 
-const POSE_PROMPT = `이 이미지는 사람 사진을 찍기 직전의 카메라 화면이다.
-회색 사각형이 있으면 그것은 찍힐 사람의 현재 위치이며, 개인정보 보호를 위해 가린 것이다.
-이 장소의 배경 요소(난간, 벽, 계단, 의자, 나무, 바다, 하늘, 길 등)를 활용해서
-여성 인물이 자연스럽고 예뻐 보이는 포즈를 3개 추천해줘.
-각 포즈는 아래 형식으로:
-1. 포즈 이름 (10자 이내)
-- 자세: 손·발·시선·몸 방향을 구체적으로 1~2줄
-- 촬영: 폰 높이·거리·인물 위치 한 줄
-처음 해보는 사람도 바로 따라할 수 있게 쉬운 말로. 다른 말은 하지 마.`;
-
 function showAi(text) { $("aiText").textContent = text; $("aiPanel").hidden = false; }
 
 function askKey() {
@@ -627,16 +947,10 @@ function askKey() {
   return k.trim();
 }
 
-async function aiAdvice(kind = "advice") {
-  const isPose = kind === "pose";
-  const btn = isPose ? $("poseBtn") : $("aiBtn");
-  const label = isPose ? "포즈 추천" : "AI 조언";
-  if (!srcSize().w) return;
-  let key = getKey() || askKey();
-  if (!key) return;
-
-  // 지금 화면을 축소 캡처하고, 인물 영역은 회색으로 가림
+// 지금 화면을 축소 캡처하고, 인물 영역은 회색으로 가림
+function captureForAi() {
   const { w: vw, h: vh } = srcSize();
+  if (!vw) return null;
   const s = Math.min(1, CONFIG.aiImageMax / Math.max(vw, vh));
   const c = document.createElement("canvas");
   c.width = Math.round(vw * s); c.height = Math.round(vh * s);
@@ -647,86 +961,95 @@ async function aiAdvice(kind = "advice") {
     cx.fillStyle = "#808080";
     cx.fillRect(b.x0 * c.width, b.y0 * c.height, (b.x1 - b.x0) * c.width, (b.y1 - b.y0) * c.height);
   }
-  const b64 = c.toDataURL("image/jpeg", CONFIG.aiJpegQuality).split(",")[1];
+  return c.toDataURL("image/jpeg", CONFIG.aiJpegQuality).split(",")[1];
+}
 
-  $("aiBtn").disabled = true; $("poseBtn").disabled = true; btn.textContent = "분석 중…";
-  $("aiHead").querySelector("b").textContent = isPose ? "AI 포즈 추천" : "AI 구도 조언";
-  showAi(isPose ? "이 장소에 어울리는 포즈를 찾고 있어요…" : "화면을 보고 있어요…");
-  const log = []; // 모델별 실패 사유 (전부 실패하면 화면에 그대로 보여줌)
-  try {
-    const t0 = performance.now();
-    for (const model of CONFIG.aiModels) {
-      // Flash-Lite는 기본이 최소 생각이라 그대로, Flash는 생각을 LOW로 줄여 응답 속도를 높임
-      const generationConfig = { temperature: isPose ? 0.8 : 0.4, maxOutputTokens: 8192 };
-      if (!/lite/.test(model)) generationConfig.thinkingConfig = { thinkingLevel: "LOW" };
-      const body = JSON.stringify({
-        contents: [{ parts: [{ inline_data: { mime_type: "image/jpeg", data: b64 } }, { text: isPose ? POSE_PROMPT : AI_PROMPT }] }],
-        generationConfig,
+// Gemini 호출: 모델을 순서대로 시도, 답을 스트리밍으로 받음.
+// 성공하면 { text, model, sec }, 실패하면 화면에 보여줄 문장을 담은 Error를 던짐
+async function callGemini({ key, b64, prompt, temperature = 0.4, json = false, onText }) {
+  const log = [];
+  const t0 = performance.now();
+  for (const model of CONFIG.aiModels) {
+    // Flash-Lite는 기본이 최소 생각이라 그대로, Flash는 생각을 LOW로 줄여 응답 속도를 높임
+    const generationConfig = { temperature, maxOutputTokens: 8192 };
+    if (json) generationConfig.responseMimeType = "application/json";
+    if (!/lite/.test(model)) generationConfig.thinkingConfig = { thinkingLevel: "LOW" };
+    const body = JSON.stringify({
+      contents: [{ parts: [{ inline_data: { mime_type: "image/jpeg", data: b64 } }, { text: prompt }] }],
+      generationConfig,
+    });
+    const ctrl = new AbortController();
+    let timer = setTimeout(() => ctrl.abort(), CONFIG.aiTimeoutMs);
+    let res, data = {}, text = "", finish = "";
+    try {
+      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`, {
+        method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body, signal: ctrl.signal,
       });
-      const ctrl = new AbortController();
-      let timer = setTimeout(() => ctrl.abort(), CONFIG.aiTimeoutMs);
-      let res, data = {}, text = "", finish = "";
-      try {
-        // 스트리밍: 답이 만들어지는 대로 화면에 바로 표시
-        res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`, {
-          method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body, signal: ctrl.signal,
-        });
-        if (!res.ok) {
-          data = await res.json().catch(() => ({}));
-          if (Array.isArray(data)) data = data[0] || {};
-        } else {
-          const reader = res.body.getReader(), dec = new TextDecoder();
-          let buf = "";
-          for (;;) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            buf += dec.decode(value, { stream: true });
-            let nl;
-            while ((nl = buf.indexOf("\n")) >= 0) {
-              const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
-              if (!line.startsWith("data:")) continue;
-              let chunk; try { chunk = JSON.parse(line.slice(5)); } catch (_) { continue; }
-              const cand = chunk.candidates?.[0];
-              const piece = (cand?.content?.parts || []).filter((p) => !p.thought).map((p) => p.text || "").join("");
-              if (cand?.finishReason) finish = cand.finishReason;
-              if (chunk.promptFeedback?.blockReason) finish = chunk.promptFeedback.blockReason;
-              if (piece) {
-                if (!text) { clearTimeout(timer); timer = setTimeout(() => ctrl.abort(), 60000); } // 첫 글자가 오면 넉넉히 기다림
-                text += piece;
-                showAi(text);
-              }
+      if (!res.ok) {
+        data = await res.json().catch(() => ({}));
+        if (Array.isArray(data)) data = data[0] || {};
+      } else {
+        const reader = res.body.getReader(), dec = new TextDecoder();
+        let buf = "";
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          let nl;
+          while ((nl = buf.indexOf("\n")) >= 0) {
+            const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+            if (!line.startsWith("data:")) continue;
+            let chunk; try { chunk = JSON.parse(line.slice(5)); } catch (_) { continue; }
+            const cand = chunk.candidates?.[0];
+            const piece = (cand?.content?.parts || []).filter((p) => !p.thought).map((p) => p.text || "").join("");
+            if (cand?.finishReason) finish = cand.finishReason;
+            if (chunk.promptFeedback?.blockReason) finish = chunk.promptFeedback.blockReason;
+            if (piece) {
+              if (!text) { clearTimeout(timer); timer = setTimeout(() => ctrl.abort(), 60000); } // 첫 글자가 오면 넉넉히 기다림
+              text += piece;
+              onText?.(text);
             }
           }
         }
-      } catch (e) {
-        if (text) { showAi(text.trim() + `\n\n(${model} · 중간에 끊김)`); return; }
-        log.push(`${model}: ${e.name === "AbortError" ? `${CONFIG.aiTimeoutMs / 1000}초 동안 응답 없음` : "네트워크 오류 (" + e.message + ")"}`);
-        continue;
-      } finally { clearTimeout(timer); }
+      }
+    } catch (e) {
+      if (text && !json) return { text: text.trim(), model, sec: null, cut: true };
+      log.push(`${model}: ${e.name === "AbortError" ? `${CONFIG.aiTimeoutMs / 1000}초 동안 응답 없음` : "네트워크 오류 (" + e.message + ")"}`);
+      continue;
+    } finally { clearTimeout(timer); }
 
-      const msg = data?.error?.message || "";
-      if (res.ok) {
-        const sec = ((performance.now() - t0) / 1000).toFixed(1);
-        if (text.trim()) { showAi(text.trim() + `\n\n(${model} · ${sec}초)`); return; }
-        log.push(`${model}: 빈 응답 (${finish || "이유 없음"})`);
-        continue;
-      }
-      // 키 문제는 다른 모델로 바꿔도 똑같으니 바로 멈춤
-      if (/referer|referrer/i.test(msg)) {
-        showAi("이 주소에서 키 사용이 막혀 있어요.\nGoogle Cloud의 키 '웹사이트 제한'에 https://ksjrat.github.io/* 가 정확히 들어있는지 확인해주세요.\n\n" + msg);
-        return;
-      }
-      if (res.status === 401 || res.status === 403 && /key|permission|denied/i.test(msg) || res.status === 400 && /api key/i.test(msg)) {
-        showAi("API 키 문제예요. '키 변경'을 눌러 다시 넣어주세요.\n\n" + msg);
-        return;
-      }
-      log.push(`${model}: ${res.status}${res.status === 429 ? " 무료 한도 초과" : ""} ${msg.slice(0, 120)}`);
+    const msg = data?.error?.message || "";
+    if (res.ok) {
+      if (text.trim()) return { text: text.trim(), model, sec: ((performance.now() - t0) / 1000).toFixed(1) };
+      log.push(`${model}: 빈 응답 (${finish || "이유 없음"})`);
+      continue;
     }
-    showAi("AI 응답을 받지 못했어요. 이 화면을 캡처해서 보내주세요.\n\n" + log.join("\n"));
+    // 키 문제는 다른 모델로 바꿔도 똑같으니 바로 멈춤
+    if (/referer|referrer/i.test(msg))
+      throw new Error("이 주소에서 키 사용이 막혀 있어요.\nGoogle Cloud의 키 '웹사이트 제한'에 https://ksjrat.github.io/* 가 정확히 들어있는지 확인해주세요.\n\n" + msg);
+    if (res.status === 401 || res.status === 403 && /key|permission|denied/i.test(msg) || res.status === 400 && /api key/i.test(msg))
+      throw new Error("API 키 문제예요. '키 변경'을 눌러 다시 넣어주세요.\n\n" + msg);
+    log.push(`${model}: ${res.status}${res.status === 429 ? " 무료 한도 초과" : ""} ${msg.slice(0, 120)}`);
+  }
+  throw new Error("AI 응답을 받지 못했어요. 이 화면을 캡처해서 보내주세요.\n\n" + log.join("\n"));
+}
+
+async function aiAdvice() {
+  const btn = $("aiBtn");
+  if (btn.disabled) return;
+  const key = getKey() || askKey();
+  if (!key) return;
+  const b64 = captureForAi();
+  if (!b64) return;
+  btn.disabled = true; btn.textContent = "분석 중…";
+  showAi("화면을 보고 있어요…");
+  try {
+    const r = await callGemini({ key, b64, prompt: AI_PROMPT, temperature: 0.4, onText: showAi });
+    showAi(r.text + `\n\n(${r.model} · ${r.cut ? "중간에 끊김" : r.sec + "초"})`);
   } catch (e) {
-    showAi("오류가 났어요. 이 화면을 캡처해서 보내주세요.\n\n" + (e?.message || e) + (log.length ? "\n" + log.join("\n") : ""));
+    showAi(String(e?.message || e));
   } finally {
-    $("aiBtn").disabled = false; $("poseBtn").disabled = false; btn.textContent = label;
+    btn.disabled = false; btn.textContent = "AI 조언";
   }
 }
 
@@ -755,7 +1078,7 @@ async function loadPhoto(file) {
   photoCanvas.height = Math.round(img.naturalHeight * s);
   photoCanvas.getContext("2d").drawImage(img, 0, 0, photoCanvas.width, photoCanvas.height);
   URL.revokeObjectURL(url);
-  state.lm = null; state.analysis = null;
+  state.lm = null; state.analysis = null; state.photoKeys = [];
   layout();
 
   const lmk = await modelPromise;
@@ -770,19 +1093,30 @@ async function loadPhoto(file) {
   state.analysis = a.info;
   let keys = a.keys;
   if (!keys.includes("noPerson")) { try { keys = [...keys, ...bgAnalyze(a.info)]; } catch (e) { console.warn(e); } }
-  state.shown = [...new Set(keys)].sort((x, y) => MSG[x].p - MSG[y].p); // 사진 테스트는 전부 표시
-  state.good = state.shown.length === 0 && !!lm;
-  renderMessages();
+  state.photoKeys = keys;
+  ghostSmooth = null;
   statusEl.textContent = "사진 테스트 · 폰 기울기 판정은 제외";
-  draw();
+  photoRender();
   $("filePick").value = "";
+}
+
+// 사진 테스트 화면 다시 그리기 (포즈를 바꿀 때도 호출)
+function photoRender() {
+  poseUpdate();
+  const keys = [...(state.photoKeys || [])];
+  if (poseNeedsWork()) keys.push("pose");
+  state.shown = [...new Set(keys)].sort((x, y) => MSG[x].p - MSG[y].p); // 사진 테스트는 전부 표시
+  state.good = state.shown.length === 0 && !!state.lm;
+  state.msgSig = "";
+  renderMessages();
+  draw();
 }
 
 // ---------- 이벤트 ----------
 $("filePick").addEventListener("change", (e) => loadPhoto(e.target.files?.[0]));
 optGrid.addEventListener("change", () => { if (mode === "photo") draw(); });
-$("aiBtn").addEventListener("click", () => aiAdvice("advice"));
-$("poseBtn").addEventListener("click", () => aiAdvice("pose"));
+$("aiBtn").addEventListener("click", aiAdvice);
+$("poseBtn").addEventListener("click", () => ($("poseBar").hidden ? openPose() : closePose()));
 $("aiClose").addEventListener("click", () => ($("aiPanel").hidden = true));
 $("aiKey").addEventListener("click", askKey);
 $("startBtn").addEventListener("click", start);
